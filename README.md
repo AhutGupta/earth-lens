@@ -3,10 +3,7 @@
 Exploring environmental change in Snohomish County through open satellite, weather, and geospatial data.
 
 ## Project motivation
-_Why I am studying Snohomish County, and my personal baseline beginning in 2018. (To be written.)_
-
-## Current question
-What changed in Snohomish County's landscape and environment since 2018, and what can open data tell us about it?
+I live in Snohomish County, Washington. I wanted to understand how the landscape around me has changed. Not just through anecdotes or weather impressions, but through open satellite and environmental data.
 
 ## Study area
 Snohomish County, Washington: a region spanning Puget Sound shoreline, river valleys, farmland, growing suburbs, and the Cascade Mountains — a compact place with a wide range of land cover to observe from space.

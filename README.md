@@ -40,6 +40,15 @@ _Geospatial concepts met along the way (coordinate systems, rasters vs. vectors,
 _Scientific and data caveats (resolution, cloud cover, seasonal variation, ...)._
 
 ## Technical setup
+### Docker (recommended)
+Geospatial packages such as `rasterio` and GDAL can trigger long C++ builds on macOS (especially Apple Silicon). Docker avoids this by using pre-built Linux wheels, so it works the same on any host OS.
+
+```sh
+docker build -t earth-lens .
+docker run --rm earth-lens
+```
+
+### Local setup
 Requires [uv](https://docs.astral.sh/uv/) and Python 3.12.
 
 ```sh

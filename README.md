@@ -46,7 +46,7 @@ Requires [uv](https://docs.astral.sh/uv/) and Python 3.12.
 uv sync            # create the environment and install dependencies
 uv run pytest      # run tests
 uv run ruff check . && uv run ruff format .   # lint and format
-uv run jupyter lab # explore in notebooks/
+uv run earth-lens  # run the command-line entry point
 ```
 
-Layout: `src/` reusable code, `notebooks/` exploration, `data/` local datasets (not in Git), `outputs/` publishable visuals, `stories/` write-ups, `tests/` tests.
+Layout: `src/` reusable code, `scripts/` standalone scripts, `data/` local datasets (not in Git), `outputs/` publishable visuals, `stories/` write-ups, `tests/` tests.

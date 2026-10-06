@@ -5,10 +5,20 @@ description = "Exploring environmental change in Snohomish County through open s
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
-dependencies = []
+dependencies = [
+    "geopandas",
+    "matplotlib",
+    "planetary-computer",
+    "pystac-client",
+    "rioxarray",
+    "xarray",
+]
+
+[project.scripts]
+earth-lens = "earth_lens.cli:main"
 
 [dependency-groups]
-dev = ["pytest", "ruff", "jupyter"]
+dev = ["pytest", "ruff"]
 
 [build-system]
 requires = ["hatchling"]

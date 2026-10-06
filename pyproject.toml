@@ -1,0 +1,38 @@
+[project]
+name = "earth-lens"
+version = "0.1.0"
+description = "Exploring environmental change in Snohomish County through open satellite, weather, and geospatial data."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { file = "LICENSE" }
+dependencies = [
+    "geopandas",
+    "matplotlib",
+    "planetary-computer",
+    "pystac-client",
+    "rioxarray",
+    "xarray",
+]
+
+[project.scripts]
+earth-lens = "earth_lens.cli:main"
+
+[dependency-groups]
+dev = ["pytest", "ruff"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/earth_lens"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 88
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]

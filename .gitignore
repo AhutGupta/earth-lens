@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+.DS_Store
+# Large/raw data stays out of Git; keep the folder and README only
+data/*
+!data/.gitkeep
+!data/README.md

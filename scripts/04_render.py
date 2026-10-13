@@ -17,6 +17,7 @@ import matplotlib.patheffects as pe
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
+from matplotlib.lines import Line2D
 from pyproj import Transformer
 from rasterio.enums import Resampling
 
@@ -41,10 +42,14 @@ LANDMARKS = [
 ]
 MARKERS = {"city": "o", "industry": "*", "lake": "s", "peak": "^"}
 
-# Optional layers. Download these from the Census TIGER/Line site into data/ to
-# turn them on (see the story/README). If the file is missing, it is skipped.
-ROADS_ZIP = Path("data/tl_2023_53_prisecroads.zip")  # primary & secondary roads, WA
-WATER_ZIP = Path("data/tl_2023_53061_linearwater.zip")  # rivers and streams, Snohomish
+# Optional map layers from Census TIGER/Line (free, public domain), saved in data/.
+# If a file is missing, that layer is simply skipped.
+ROADS_ZIP = Path("data/tl_2023_53_prisecroads.zip")  # primary + secondary roads, WA
+RIVERS_ZIP = Path("data/tl_2023_53061_linearwater.zip")  # streams as lines, Snohomish
+WATER_ZIP = Path("data/tl_2023_53061_areawater.zip")  # lakes, glaciers, wide rivers
+
+MIN_LAKE_KM2 = 0.2  # skip the ~250 tiny ponds; keep lakes/reservoirs bigger than this
+MIN_GLACIER_KM2 = 0.2
 
 # Lon/lat (what we know places by) -> UTM zone 10N meters (what the rasters use).
 TO_UTM = Transformer.from_crs("EPSG:4326", "EPSG:32610", always_xy=True)
@@ -75,17 +80,53 @@ def get_extent():
     return (b.left, b.right, b.bottom, b.top)
 
 
-def draw_optional_layers(ax):
-    """Add roads and rivers if their files have been downloaded."""
+def load(zip_path, county):
+    """Read a TIGER file, convert to UTM (same as the imagery), cut to the county."""
+    layer = gpd.read_file(zip_path).to_crs("EPSG:32610")
+    return gpd.clip(layer, county)
+
+
+def draw_layers(ax):
+    """Draw roads, rivers, lakes and glaciers on top of the true-color image.
+
+    TIGER codes used (MTFCC = feature class, RTTYP = road type):
+      roads:  RTTYP I = Interstate, U = US highway, S = state route
+      water:  H2030 lake/pond, H2040 reservoir, H2081 glacier, H3010 river
+    Puget Sound (H2051) is left out: the satellite image already shows it.
+    """
     county = gpd.read_file("data/snohomish_utm.gpkg")
-    if ROADS_ZIP.exists():
-        roads = gpd.read_file(ROADS_ZIP).to_crs("EPSG:32610")
-        roads = gpd.clip(roads[roads["RTTYP"].isin(["I", "U"])], county)  # I-5, US-2...
-        roads.plot(ax=ax, color="#ffd54f", linewidth=1.2)
+    handles = []  # (color, label) pairs for the legend
+
     if WATER_ZIP.exists():
-        water = gpd.read_file(WATER_ZIP).to_crs("EPSG:32610")
-        rivers = water[water["FULLNAME"].fillna("").str.contains("River")]
-        gpd.clip(rivers, county).plot(ax=ax, color="#4fc3f7", linewidth=0.8)
+        water = load(WATER_ZIP, county)
+        water = water.assign(km2=water.area / 1e6)
+        lakes = water[water["MTFCC"].isin(["H2030", "H2040"]) & (water.km2 > MIN_LAKE_KM2)]
+        glaciers = water[(water["MTFCC"] == "H2081") & (water.km2 > MIN_GLACIER_KM2)]
+        wide_rivers = water[water["MTFCC"] == "H3010"]  # rivers wide enough to be polygons
+        lakes.plot(ax=ax, facecolor="none", edgecolor="#4fc3f7", linewidth=1.2)
+        wide_rivers.plot(ax=ax, facecolor="#4fc3f7", edgecolor="none")
+        glaciers.plot(ax=ax, facecolor="none", edgecolor="#00e5ff", linewidth=1, linestyle="--")
+        handles += [("#4fc3f7", "Lakes and rivers"), ("#00e5ff", "Glaciers")]
+
+    if RIVERS_ZIP.exists():
+        streams = load(RIVERS_ZIP, county)
+        # TIGER abbreviates names ("Skykomish Riv"), so match on "Riv". This keeps the
+        # ~20 named rivers and drops hundreds of unnamed creeks that would clutter the map.
+        rivers = streams[streams["FULLNAME"].fillna("").str.contains(r"\bRiv\b")]
+        rivers.plot(ax=ax, color="#4fc3f7", linewidth=0.9)
+
+    if ROADS_ZIP.exists():
+        roads = load(ROADS_ZIP, county)
+        roads[roads["RTTYP"] == "S"].plot(ax=ax, color="#ffb74d", linewidth=0.7)
+        roads[roads["RTTYP"].isin(["I", "U"])].plot(ax=ax, color="#ffee58", linewidth=1.6)
+        handles += [("#ffee58", "Interstate / US highway"), ("#ffb74d", "State route")]
+
+    # Legend: small colored lines, in a box so it's readable over the image.
+    ax.legend(
+        [Line2D([0], [0], color=c, lw=2) for c, _ in handles],
+        [label for _, label in handles],
+        loc="lower left", fontsize=9, facecolor="white", framealpha=0.9,
+    )
 
 
 def draw_landmarks(ax):
@@ -128,7 +169,7 @@ def render(downsample, dpi, out_dir):
     # (converted to UTM) land in the right spot.
     fig, ax = plt.subplots(figsize=(16, 9))
     ax.imshow(rgb, extent=extent)
-    draw_optional_layers(ax)
+    draw_layers(ax)
     draw_landmarks(ax)
     ax.set_xlim(extent[0], extent[1])  # geopandas may change the limits; reset
     ax.set_ylim(extent[2], extent[3])

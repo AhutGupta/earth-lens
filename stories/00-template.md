@@ -1,10 +1,10 @@
 # Title
 
-## Question
+## The question
 ## Why I care
-## Data
+## The data
 ## What I did
 ## Result
 ## What I learned
-## Limitations
+## What I cannot conclude
 ## Next question

@@ -7,6 +7,9 @@ __pycache__/
 *.egg-info/
 dist/
 .DS_Store
+.vscode/
+# Full-resolution renders are too big for Git; publish them via a GitHub Release
+outputs/hires/
 # Large/raw data stays out of Git; keep the folder and README only
 data/*
 !data/.gitkeep

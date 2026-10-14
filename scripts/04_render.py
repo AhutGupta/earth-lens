@@ -43,6 +43,9 @@ LANDMARKS = [
     ("Mt Pilchuck", -121.798, 48.058, "peak"),
     ("Three Fingers", -121.686, 48.170, "peak"),
     ("Sloan Peak", -121.340, 48.041, "peak"),
+    ("Vesper Peak", -121.517, 48.013, "peak"),
+    ("Kyes Peak", -121.332, 47.978, "peak"),
+    ("Columbia Peak", -121.353, 47.962, "peak"),
 ]
 MARKERS = {"city": "o", "industry": "*"}
 
@@ -79,7 +82,6 @@ def load(zip_path, county):
     """Read a TIGER file, convert to UTM, cut to the county."""
     layer = gpd.read_file(zip_path).to_crs("EPSG:32610")
     return gpd.clip(layer, county)
-
 
 def draw_layers(ax):
     """Draw roads, rivers, lakes, glaciers, and Puget Sound with legend box."""
@@ -147,7 +149,6 @@ def draw_layers(ax):
         handletextpad=0.6,
     )
 
-
 def draw_landmarks(ax):
     """Plot landmarks: cities get markers; lakes/peaks get cleanly offset text labels."""
     outline = [pe.withStroke(linewidth=2.5, foreground="white")]
@@ -158,6 +159,9 @@ def draw_landmarks(ax):
         "Mt Pilchuck": (10, 8),
         "Sloan Peak": (10, -6),
         "Three Fingers": (8, 6),
+        "Vesper Peak": (8, 6),
+        "Kyes Peak": (8, -8),
+        "Columbia Peak": (8, -6),
         "Spada Lake": (0, 12),
     }
 
@@ -250,6 +254,15 @@ def render(downsample, dpi, out_dir):
     ax.annotate(
         "Urban & Built Surface\n(Boeing Factory / Runway)", (x_urban, y_urban),
         xytext=(-120, -30), textcoords="offset points",
+        fontsize=8, fontweight="bold", color="#b71c1c", path_effects=outline,
+        arrowprops=dict(arrowstyle="->", color="#b71c1c", lw=1.2),
+    )
+
+    # Snohomish River Delta & Estuary Tidal Flats (Low/Negative NDVI / Red)
+    x_delta, y_delta = TO_UTM.transform(-122.200, 48.010)
+    ax.annotate(
+        "Snohomish River Delta\n(Estuary Flats & Port of Everett)", (x_delta, y_delta),
+        xytext=(30, 20), textcoords="offset points",
         fontsize=8, fontweight="bold", color="#b71c1c", path_effects=outline,
         arrowprops=dict(arrowstyle="->", color="#b71c1c", lw=1.2),
     )

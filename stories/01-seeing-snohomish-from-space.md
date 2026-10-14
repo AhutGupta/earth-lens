@@ -1,8 +1,13 @@
-# 01 – Seeing My Home from Space
+# Seeing Snohomish County from Space
 
 I have always loved maps. A good map takes a huge, messy piece of the real world and makes it something you can hold in your hands and understand at a glance. It tells you where you are, how things connect, and what is worth a closer look.
 
-![True-color Snohomish County, July 2026](../outputs/true_color.png)
+### 📊 Project Snapshot
+> - **Satellite Data:** Copernicus Sentinel-2 L2A (10 m spatial resolution)
+> - **Spectral Bands:** Band 2 (Blue), Band 3 (Green), Band 4 (Red), Band 8 (NIR)
+> - **Vector Data:** US Census Bureau TIGER/Line (County boundary, roads, rivers, lakes)
+> - **Target Region:** Snohomish County, WA (~2,100 sq. miles)
+> - **Tech Stack:** Python (`rasterio`, `geopandas`, `matplotlib`, `shapely`)
 
 ## Why this project
 
@@ -28,6 +33,8 @@ Four small Python scripts, run in order:
 It took several rounds to get right. My first scene was hazy, so I switched dates. The next one was missing a tile, so I added a second one, taken two days apart, to complete the map. Every round taught me something.
 
 ## The true-color map
+
+![True-color Snohomish County, July 2026](../outputs/true_color.png)
 
 True color is the picture your eyes would see from space: the red, green and blue bands, stretched a little for contrast.
 

@@ -57,9 +57,11 @@ One simple formula, and the landscape sorts itself into plants and not-plants.
 
 This project taught me how satellite imagery is stored, how to put different kinds of map data into the same coordinate system, how to stitch and clean up imagery, and how to turn numbers into something worth looking at. Most of all, it reminded me why I love maps, and how lucky I am to live somewhere this beautiful.
 
-## Files
+## Hi-Res Maps
 
-Full-resolution (10 m) versions are not in Git. [FILL IN: link to the GitHub Release or blog post.]
+Full-resolution (10 m) versions of the maps are available here (NOTE: Clicking on the links will download the files)
+1. [True Color map](https://github.com/AhutGupta/earth-lens/releases/download/v1.0/true_color.png) 
+2. [NDVI map](https://github.com/AhutGupta/earth-lens/releases/download/v1.0/ndvi.png)
 
 ## Credits
 

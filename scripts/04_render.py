@@ -23,7 +23,7 @@ from rasterio.enums import Resampling
 from shapely import Polygon, unary_union
 from shapely.geometry import box
 
-DATE_LABEL = "Sentinel-2, 20 August 2023"
+DATE_LABEL = "Sentinel-2, 13 July 2026"
 
 # Landmarks drawn on the true-color map: (name, longitude, latitude, kind).
 # Note: 'lake' and 'peak' are rendered as clean text labels without markers.
@@ -122,9 +122,6 @@ def draw_layers(ax):
     puget_geom = puget_geom.buffer(-100).buffer(100)
 
     puget_poly = gpd.GeoSeries([puget_geom], crs="EPSG:32610")
-    puget_poly.plot(ax=ax, facecolor="#0288d1", alpha=0.35, edgecolor="#01579b", linewidth=0.8)
-    
-    # Plot solid blue Puget Sound block bounded cleanly by county limits
     puget_poly.plot(ax=ax, facecolor="#0288d1", alpha=0.35, edgecolor="#01579b", linewidth=0.8)
 
     # Offshore Puget Sound text label placed cleanly inside the water body north of Mukilteo
@@ -277,8 +274,8 @@ def render(downsample, dpi, out_dir):
     # Dense Forest Foothills (High NDVI)
     x_forest, y_forest = TO_UTM.transform(-121.800, 47.920)
     ax.annotate(
-        "Dense Conifer Forest\n(High NDVI ~ 0.8)", (x_forest, y_forest),
-        xytext=(-80, -20), textcoords="offset points",
+        "Dense Conifer Forests\n(High NDVI)", (x_forest, y_forest),
+        xytext=(-50, -20), textcoords="offset points",
         fontsize=8, fontweight="bold", color="#1b5e20", path_effects=outline,
         arrowprops=dict(arrowstyle="->", color="#1b5e20", lw=1.2),
     )

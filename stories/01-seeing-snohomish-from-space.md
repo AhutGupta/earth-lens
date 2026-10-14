@@ -1,73 +1,66 @@
-# Seeing My Home from Space
+# 01 – Seeing My Home from Space
 
-## The question
-What does Snohomish County look like through Earth-observation data?
+I have always loved maps. A good map takes a huge, messy piece of the real world and makes it something you can hold in your hands and understand at a glance. It tells you where you are, how things connect, and what is worth a closer look.
 
-## Why I care
-I live here. I moved to the Seattle area in 2018 and have spent years looking at this landscape from the ground: the Sound, the river valleys, the farmland, the foothills, the Cascades. I wanted to see it from the other direction, from about 800 km up, and eventually find out whether the changes I think I've noticed show up in the data.
+![True-color Snohomish County, July 2026](../outputs/true_color.png)
 
-This first step is simpler: just look.
+## Why this project
 
-## The data
-- **Sentinel-2 Level-2A**: a European Space Agency satellite that images the whole planet every few days. I used scenes from **20 August 2023** with under 10% cloud cover. The county spans three tiles, which I stitched together.
-- **US Census county boundaries (2023)**: used to cut the imagery to the county outline.
+These days there is more satellite data than ever, and a lot of it is free. Satellites photograph the whole planet every few days, and anyone with a laptop can download the files. I'm a software engineer, and I wanted to learn how to turn that raw data into something meaningful, and to learn geospatial concepts along the way. I also wanted the result to be beautiful: maps as a kind of art.
 
-Level-2A means the images are already corrected for the atmosphere, so values are comparable between dates. That matters later when I compare years.
+So I decided to start simple, and to start at home. Snohomish County, Washington, is where I live, and it turns out to be a perfect first subject. In one county there is saltwater, river deltas, farmland, cities, dense forest, alpine country and a volcano.
 
-## What I did
-1. Pulled out Snohomish County's outline and converted it to the same coordinate system as the imagery (UTM zone 10N), so the two lined up.
-2. Merged three satellite tiles into one image covering the whole county.
-3. Cut the merged image to the county outline.
-4. Made two pictures from four of the satellite's bands: a true-color image and a vegetation map.
+I was also curious about NDVI, a vegetation index that you calculate from just two bands of light. The formula is a single line, and yet it reveals a surprising amount about a landscape.
 
-## Result
+## Where the data comes from
 
-### True color
-![True-color Snohomish County](../outputs/true_color.png)
+The imagery is from **Sentinel-2**, a pair of European Space Agency satellites that photograph the Earth's land at 10 meter detail. I downloaded it for free from the Copernicus Browser, picking scenes with little cloud cover, around the peak of summer 2026. The county boundary, roads, rivers and lakes come from the US Census Bureau.
 
-This is roughly what your eyes would see from orbit. It's built from three bands (red, green, and blue), one for each color channel of the image. I stretched the contrast a little because raw satellite data looks flat and dark.
+## How it came together
 
-_TODO: what stands out to you? The Sound, the Cascades, Everett, the Snohomish River valley, snow, haze?_
+Four small Python scripts, run in order:
 
-### NDVI
-![NDVI Snohomish County](../outputs/ndvi.png)
+1. **`01_boundary.py`** pulls out the county outline and makes a locator map.
+2. **`02_inspect_scenes.py`** checks that the downloaded tiles actually cover the whole county.
+3. **`03_mosaic_clip.py`** stitches the tiles into one image, evens out their brightness, and trims it to the county shape.
+4. **`04_render.py`** draws the final maps, with the roads, rivers, glaciers, Puget Sound and landmarks on top.
 
-NDVI stands for Normalized Difference Vegetation Index. Plants absorb red light for photosynthesis and strongly reflect near-infrared light, which our eyes can't see. NDVI compares the two:
+It took several rounds to get right. My first scene was hazy, so I switched dates. The next one was missing a tile, so I added a second one, taken two days apart, to complete the map. Every round taught me something.
 
-$$\text{NDVI} = \frac{\text{NIR} - \text{Red}}{\text{NIR} + \text{Red}}$$
+## The true-color map
 
-The result runs from -1 to 1. Roughly:
+True color is the picture your eyes would see from space: the red, green and blue bands, stretched a little for contrast.
 
-| NDVI | What it usually means |
-| --- | --- |
-| Below 0 | Water. It absorbs near-infrared, so the value goes negative. |
-| 0 to 0.2 | Bare rock, snow, pavement, buildings, or bare soil |
-| 0.2 to 0.5 | Sparse or stressed vegetation: grass, pasture, cropland, lawns |
-| 0.5 to 0.7 | Healthy, dense vegetation |
-| Above 0.7 | Very dense, healthy canopy, like conifer forest |
+Start at the left edge, in the deep water of **Puget Sound**. Moving east, the shoreline runs past **Mukilteo** and **Edmonds** to the **Port of Everett**, where the **Snohomish River** spreads into its delta. In the north-west are the checkerboard farm fields near **Stanwood** and **Marysville**, and the cities line up along the Interstate 5 corridor, with **Lake Stevens** dark against the streets around it.
 
-These cutoffs are rules of thumb, not hard lines. The same number can mean different things in different places.
+Further east the city grid gives way to dark green foothill forest, with **Spada Lake** lying in a long valley. Then the Cascades begin. **Three Fingers**, **Vesper Peak**, **Sloan Peak**, **Kyes Peak** and **Columbia Peak** rise as pale, rocky ridges with July snow still in the gullies. At the far east edge is **Glacier Peak**, a volcano, ringed by glaciers.
 
-_TODO: where is it greenest? Lowest? Does the pattern match what you know?_
+Getting the details onto the map was half the fun: drawing Puget Sound as a polygon, adding the roads and rivers as layers, placing peaks and cities by their real coordinates, and nudging the labels so the text doesn't cover what it names.
 
-## What I learned
-- A satellite image is a stack of numbers, one per band per pixel. A photo is three of those bands. NDVI is a different combination.
-- Each Sentinel-2 pixel covers 10 m × 10 m. The county is about 5,460 km², so that's roughly 54 million pixels per band.
-- Tiles don't follow political boundaries. Snohomish County needed three.
-- Coordinate systems matter. Area in degrees is meaningless, while area in meters gave 5,463 km², close to the Census's 5,404 km² of land.
-- Newer Sentinel-2 data has a +1000 offset, so reflectance is `(value − 1000) / 10000`. Skipping it quietly skews NDVI.
-- **Mosaics have seams.** My first merge showed a rectangular "shadow" where two tiles met, in both true color and NDVI. Over the same ground, one tile read about 30% darker in the visible bands than its neighbor (haze and atmospheric correction differ per tile). Near-infrared agreed within 3%, so the seam was mostly in the visible bands. NDVI is a ratio, but haze adds light rather than scaling it, so the ratio doesn't cancel it. I fixed it by matching each tile's brightness to its neighbor over the overlap and blending across 5 km, which brought the visible-band ratio from 0.64–0.71 to 0.95–0.97.
-- **Resolution is a choice.** Native pixels are 10 m. The web images in this repo use 40 m pixels; a full 10 m render is about 12,000 px wide.
+## The NDVI map
 
-_TODO: add what surprised you._
+![NDVI Snohomish County, July 2026](../outputs/ndvi.png)
 
-## What I cannot conclude
-- This is a single day in August 2023. It says nothing about change, trends, or what's "normal".
-- NDVI measures how much green plant material there is, not why. A low value could be rock, snow, pavement, a mown field, or stressed plants.
-- Thin haze, cloud shadows, and smoke can shift values even in a "clear" scene.
-- Each pixel mixes whatever is in a 10 m square, so one value can blend trees, a road, and a roof.
-- Brightness matching changes pixel values. That's fine for a picture, but for comparing years in Release 2 I should use original values, or compare only inside a single tile, so the correction doesn't add its own bias.
-- Landmark positions on the true-color map were placed by hand from approximate coordinates, not read from a dataset.
+NDVI compares two kinds of light: red and near-infrared. Healthy plants absorb red and reflect a lot of near-infrared, so the difference between them shows how green and leafy a place is. Dense forest comes out dark green. Everything that isn't leafy shows up red or yellow.
 
-## Next question
-How does this same view look in other summers? I want to compare August 2018, the year I moved here, with 2020, 2023, and the latest year, and see whether anything has really changed.
+The same satellite pixels that made the true-color map now tell a different story:
+
+- The **glaciers and snowfields** around Glacier Peak and the high ridges glow red.
+- **Lakes**, including Spada Lake and Lake Stevens, stand out as red shapes.
+- The **river delta** at Everett is a tangle of red and dark water.
+- **Cities, roads and the Boeing factory and runway area** near Mukilteo show up in yellow and orange.
+- The **farm fields** in the north-west form a patchwork of greens and yellows.
+
+One simple formula, and the landscape sorts itself into plants and not-plants.
+
+## What I took away
+
+This project taught me how satellite imagery is stored, how to put different kinds of map data into the same coordinate system, how to stitch and clean up imagery, and how to turn numbers into something worth looking at. Most of all, it reminded me why I love maps, and how lucky I am to live somewhere this beautiful.
+
+## Files
+
+Full-resolution (10 m) versions are not in Git. [FILL IN: link to the GitHub Release or blog post.]
+
+## Credits
+
+Contains modified Copernicus Sentinel data [2026]. County boundaries, roads and water features: US Census Bureau (cb_2023 and TIGER/Line 2023).

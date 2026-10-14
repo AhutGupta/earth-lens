@@ -24,8 +24,7 @@ from rasterio.enums import Resampling
 DATE_LABEL = "Sentinel-2, 20 August 2023"
 
 # Landmarks drawn on the true-color map: (name, longitude, latitude, kind).
-# Positions are approximate (read off a map). If one looks off on the image,
-# nudge its lon/lat. No extra data download is needed for these.
+# Note: 'lake' and 'peak' are rendered as clean text labels without markers.
 LANDMARKS = [
     ("Everett", -122.202, 47.979, "city"),
     ("Marysville", -122.177, 48.052, "city"),
@@ -36,37 +35,33 @@ LANDMARKS = [
     ("Granite Falls", -121.969, 48.084, "city"),
     ("Darrington", -121.602, 48.255, "city"),
     ("Lynnwood", -122.315, 47.821, "city"),
-    ("Boeing Everett\nfactory", -122.273, 47.923, "industry"),
+    ("Mukilteo", -122.304, 47.948, "city"),
+    ("Edmonds", -122.379, 47.810, "city"),
+    ("Stanwood", -122.370, 48.241, "city"),
     ("Spada Lake", -121.729, 47.970, "lake"),
     ("Glacier Peak", -121.114, 48.112, "peak"),
+    ("Mt Pilchuck", -121.798, 48.058, "peak"),
+    ("Three Fingers", -121.686, 48.170, "peak"),
+    ("Sloan Peak", -121.340, 48.041, "peak"),
 ]
-MARKERS = {"city": "o", "industry": "*", "lake": "s", "peak": "^"}
+MARKERS = {"city": "o", "industry": "*"}
 
-# Optional map layers from Census TIGER/Line (free, public domain), saved in data/.
-# If a file is missing, that layer is simply skipped.
-ROADS_ZIP = Path("data/tl_2023_53_prisecroads.zip")  # primary + secondary roads, WA
-RIVERS_ZIP = Path("data/tl_2023_53061_linearwater.zip")  # streams as lines, Snohomish
-WATER_ZIP = Path("data/tl_2023_53061_areawater.zip")  # lakes, glaciers, wide rivers
+ROADS_ZIP = Path("data/tl_2023_53_prisecroads.zip")
+RIVERS_ZIP = Path("data/tl_2023_53061_linearwater.zip")
+WATER_ZIP = Path("data/tl_2023_53061_areawater.zip")
 
-MIN_LAKE_KM2 = 0.2  # skip the ~250 tiny ponds; keep lakes/reservoirs bigger than this
+MIN_LAKE_KM2 = 0.2
 MIN_GLACIER_KM2 = 0.2
-
 # Lon/lat (what we know places by) -> UTM zone 10N meters (what the rasters use).
 TO_UTM = Transformer.from_crs("EPSG:4326", "EPSG:32610", always_xy=True)
 
 
 def read_band(name, downsample):
-    """Read one band as reflectance (0-1 floats). Pixels outside the county are NaN.
-
-    downsample=4 averages 4x4 blocks of 10 m pixels into one 40 m pixel.
-    downsample=1 keeps full 10 m detail.
-    """
+    """Read one band as reflectance (0-1 floats). Pixels outside the county are NaN."""
     with rasterio.open(f"data/clipped/{name}.tif") as src:
         h, w = src.height // downsample, src.width // downsample
         dn = src.read(1, out_shape=(h, w), resampling=Resampling.average)
-    outside = dn < 1  # 0 = nodata; averaging can leave tiny values near the edge
-    # Sentinel-2 files from processing baseline 04.00+ store
-    # reflectance * 10000 + 1000, so undo both to get 0-1 reflectance.
+    outside = dn < 1
     refl = (dn.astype("float32") - 1000) / 10000
     refl = np.clip(refl, 0, 1)
     refl[outside] = np.nan
@@ -74,104 +69,147 @@ def read_band(name, downsample):
 
 
 def get_extent():
-    """Map extent in UTM meters, so we can plot landmarks in real coordinates."""
+    """Map extent in UTM meters."""
     with rasterio.open("data/clipped/B04.tif") as src:
         b = src.bounds
     return (b.left, b.right, b.bottom, b.top)
 
 
 def load(zip_path, county):
-    """Read a TIGER file, convert to UTM (same as the imagery), cut to the county."""
+    """Read a TIGER file, convert to UTM, cut to the county."""
     layer = gpd.read_file(zip_path).to_crs("EPSG:32610")
     return gpd.clip(layer, county)
 
 
 def draw_layers(ax):
-    """Draw roads, rivers, lakes and glaciers on top of the true-color image.
-
-    TIGER codes used (MTFCC = feature class, RTTYP = road type):
-      roads:  RTTYP I = Interstate, U = US highway, S = state route
-      water:  H2030 lake/pond, H2040 reservoir, H2081 glacier, H3010 river
-    Puget Sound (H2051) is left out: the satellite image already shows it.
-    """
+    """Draw roads, rivers, lakes, glaciers, and Puget Sound with legend box."""
     county = gpd.read_file("data/snohomish_utm.gpkg")
-    handles = []  # (color, label) pairs for the legend
+    handles = []
+    outline = [pe.withStroke(linewidth=2.5, foreground="white")]
 
     if WATER_ZIP.exists():
         water = load(WATER_ZIP, county)
         water = water.assign(km2=water.area / 1e6)
+
+        puget_sound = water[water["MTFCC"] == "H2051"]
         lakes = water[water["MTFCC"].isin(["H2030", "H2040"]) & (water.km2 > MIN_LAKE_KM2)]
         glaciers = water[(water["MTFCC"] == "H2081") & (water.km2 > MIN_GLACIER_KM2)]
-        wide_rivers = water[water["MTFCC"] == "H3010"]  # rivers wide enough to be polygons
-        lakes.plot(ax=ax, facecolor="none", edgecolor="#4fc3f7", linewidth=1.2)
+        wide_rivers = water[water["MTFCC"] == "H3010"]
+
+        # Solid polygon fill for Puget Sound (no dots/markers)
+        puget_sound.plot(ax=ax, facecolor="#0288d1", alpha=0.55, edgecolor="#01579b", linewidth=0.8)
+        
+        # Lakes and rivers
+        lakes.plot(ax=ax, facecolor="#0288d1", alpha=0.4, edgecolor="#4fc3f7", linewidth=1.1)
         wide_rivers.plot(ax=ax, facecolor="#4fc3f7", edgecolor="none")
-        glaciers.plot(ax=ax, facecolor="none", edgecolor="#00e5ff", linewidth=1, linestyle="--")
-        handles += [("#4fc3f7", "Lakes and rivers"), ("#00e5ff", "Glaciers")]
+
+        # Glaciers: Electric cyan
+        glaciers.plot(ax=ax, facecolor="#e0f7fa", alpha=0.6, edgecolor="#00e5ff", linewidth=1.2, linestyle="--")
+
+        # Puget Sound label placed strictly offshore (far west into open water)
+        puget_x, puget_y = TO_UTM.transform(-122.480, 47.920)
+        ax.text(
+            puget_x, puget_y, "Puget Sound", fontsize=10, fontstyle="italic",
+            fontweight="bold", color="#01579b", path_effects=outline, rotation=-15,
+        )
+
+        handles += [
+            Line2D([0], [0], color="#01579b", lw=2, label="Puget Sound"),
+            Line2D([0], [0], color="#4fc3f7", lw=2, label="Lakes & rivers"),
+            Line2D([0], [0], color="#00e5ff", lw=2, ls="--", label="Glaciers"),
+        ]
 
     if RIVERS_ZIP.exists():
         streams = load(RIVERS_ZIP, county)
-        # TIGER abbreviates names ("Skykomish Riv"), so match on "Riv". This keeps the
-        # ~20 named rivers and drops hundreds of unnamed creeks that would clutter the map.
+        # Filter out non-line geometries or point noise along coastline
+        streams = streams[streams.geometry.type.isin(["LineString", "MultiLineString"])]
         rivers = streams[streams["FULLNAME"].fillna("").str.contains(r"\bRiv\b")]
-        rivers.plot(ax=ax, color="#4fc3f7", linewidth=0.9)
+        rivers.plot(ax=ax, color="#4fc3f7", linewidth=0.8)
 
     if ROADS_ZIP.exists():
         roads = load(ROADS_ZIP, county)
-        roads[roads["RTTYP"] == "S"].plot(ax=ax, color="#ffb74d", linewidth=0.7)
-        roads[roads["RTTYP"].isin(["I", "U"])].plot(ax=ax, color="#ffee58", linewidth=1.6)
-        handles += [("#ffee58", "Interstate / US highway"), ("#ffb74d", "State route")]
+        roads[roads["RTTYP"] == "S"].plot(ax=ax, color="#ffb74d", linewidth=0.6)
+        roads[roads["RTTYP"].isin(["I", "U"])].plot(ax=ax, color="#ffee58", linewidth=1.4)
 
-    # Legend: small colored lines, in a box so it's readable over the image.
+        handles += [
+            Line2D([0], [0], color="#ffee58", lw=2, label="Interstate / US highway"),
+            Line2D([0], [0], color="#ffb74d", lw=2, label="State route"),
+        ]
+
     ax.legend(
-        [Line2D([0], [0], color=c, lw=2) for c, _ in handles],
-        [label for _, label in handles],
-        loc="lower left", fontsize=9, facecolor="white", framealpha=0.9,
+        handles=handles,
+        loc="lower right",
+        fontsize=8.5,
+        facecolor="white",
+        framealpha=0.92,
+        edgecolor="#cccccc",
+        borderpad=0.8,
+        handletextpad=0.6,
     )
 
 
 def draw_landmarks(ax):
-    """Plot each landmark as a marker plus a label with a white outline."""
-    outline = [pe.withStroke(linewidth=3, foreground="white")]
+    """Plot landmarks: cities get markers; lakes/peaks get cleanly offset text labels."""
+    outline = [pe.withStroke(linewidth=2.5, foreground="white")]
+    
+    # Custom offsets for peaks and lakes so text doesn't obscure terrain features
+    OFFSETS = {
+        "Glacier Peak": (10, -10),
+        "Mt Pilchuck": (10, 8),
+        "Sloan Peak": (10, -6),
+        "Three Fingers": (8, 6),
+        "Spada Lake": (0, 12),
+    }
+
     for name, lon, lat, kind in LANDMARKS:
         x, y = TO_UTM.transform(lon, lat)
-        ax.plot(x, y, MARKERS[kind], color="black", markersize=6)
-        ax.annotate(
-            name, (x, y), xytext=(5, 5), textcoords="offset points",
-            fontsize=9, path_effects=outline,
-        )
+        if kind in MARKERS:
+            ax.plot(x, y, MARKERS[kind], color="black", markersize=4.5)
+            ax.annotate(
+                name, (x, y), xytext=(4, 4), textcoords="offset points",
+                fontsize=7.5, fontweight="normal", path_effects=outline,
+            )
+        else:
+            font_style = "italic" if kind == "lake" else "normal"
+            offset = OFFSETS.get(name, (5, 5))
+            
+            # Draw a small subtle dot for peaks so the actual summit location is clear
+            if kind == "peak":
+                ax.plot(x, y, "^", color="#3e2723", markersize=4)
+                
+            ax.annotate(
+                name, (x, y), xytext=offset, textcoords="offset points",
+                fontsize=8, fontstyle=font_style, fontweight="bold",
+                color="#1a237e" if kind == "lake" else "#3e2723",
+                path_effects=outline,
+            )
 
 
 def render(downsample, dpi, out_dir):
-    """Make both maps. Bigger dpi + smaller downsample = sharper, bigger files."""
+    """Make both true-color and annotated NDVI maps."""
     out_dir.mkdir(parents=True, exist_ok=True)
     extent = get_extent()
     blue, green, red, nir = (read_band(b, downsample) for b in ["B02", "B03", "B04", "B08"])
 
-    # NDVI = (NIR - Red) / (NIR + Red). Plants absorb red and reflect near-infrared.
-    # Skip pixels where the sum is ~0 (dividing by ~0 gives garbage like -1 or 1).
     with np.errstate(invalid="ignore", divide="ignore"):
         ndvi = np.where(nir + red > 0.01, (nir - red) / (nir + red), np.nan)
 
-    # True color = red, green, blue stacked as image channels.
-    # Raw reflectance looks dark and flat, so stretch contrast between the 2nd and
-    # 98th percentile (sampled sparsely to save time), then brighten with gamma.
     rgb = np.dstack([red, green, blue])
     del red, green, nir
     lo, hi = np.nanpercentile(rgb[::20, ::20], [2, 98])
     rgb -= lo
-    rgb /= hi - lo
+    rgb /= (hi - lo)
     np.clip(rgb, 0, 1, out=rgb)
     rgb **= 1 / 1.4
-    rgb[np.isnan(blue)] = 1  # white outside the county
+    rgb[np.isnan(blue)] = 1
     del blue
 
-    # imshow with extent= places the image in real UTM meters, so landmarks
-    # (converted to UTM) land in the right spot.
+    # True Color Map
     fig, ax = plt.subplots(figsize=(16, 9))
     ax.imshow(rgb, extent=extent)
     draw_layers(ax)
     draw_landmarks(ax)
-    ax.set_xlim(extent[0], extent[1])  # geopandas may change the limits; reset
+    ax.set_xlim(extent[0], extent[1])
     ax.set_ylim(extent[2], extent[3])
     ax.set_title(f"Snohomish County, WA: true color\n{DATE_LABEL}", fontsize=14)
     ax.set_axis_off()
@@ -179,13 +217,43 @@ def render(downsample, dpi, out_dir):
     plt.close(fig)
     del rgb
 
-    # RdYlGn: red = bare/built, green = dense vegetation. vmin/vmax fix the scale
-    # so different dates can be compared with the same colors later.
+    # NDVI Map with key terrain feature callouts
     fig, ax = plt.subplots(figsize=(16, 9))
     im = ax.imshow(ndvi, cmap="RdYlGn", vmin=-0.2, vmax=0.9, extent=extent)
     ax.set_title(f"Snohomish County, WA: NDVI (vegetation)\n{DATE_LABEL}", fontsize=14)
     ax.set_axis_off()
     fig.colorbar(im, ax=ax, shrink=0.7, label="NDVI")
+
+    # Explanatory annotations on NDVI map
+    outline = [pe.withStroke(linewidth=2.5, foreground="white")]
+    
+    # Dense Forest Foothills (High NDVI)
+    x_forest, y_forest = TO_UTM.transform(-121.800, 47.920)
+    ax.annotate(
+        "Dense Conifer Forest\n(High NDVI ~ 0.8)", (x_forest, y_forest),
+        xytext=(-80, -20), textcoords="offset points",
+        fontsize=8, fontweight="bold", color="#1b5e20", path_effects=outline,
+        arrowprops=dict(arrowstyle="->", color="#1b5e20", lw=1.2),
+    )
+
+    # High Alpine Bare Rock & Snow (Low NDVI)
+    x_peak, y_peak = TO_UTM.transform(-121.114, 48.112)
+    ax.annotate(
+        "Glaciers & Exposed Rock\n(Low / Negative NDVI)", (x_peak, y_peak),
+        xytext=(-100, 30), textcoords="offset points",
+        fontsize=8, fontweight="bold", color="#b71c1c", path_effects=outline,
+        arrowprops=dict(arrowstyle="->", color="#b71c1c", lw=1.2),
+    )
+
+    # Boeing / Urban Infrastructure (Low NDVI / Red)
+    x_urban, y_urban = TO_UTM.transform(-122.273, 47.923)
+    ax.annotate(
+        "Urban & Built Surface\n(Boeing Factory / Runway)", (x_urban, y_urban),
+        xytext=(-120, -30), textcoords="offset points",
+        fontsize=8, fontweight="bold", color="#b71c1c", path_effects=outline,
+        arrowprops=dict(arrowstyle="->", color="#b71c1c", lw=1.2),
+    )
+
     fig.savefig(out_dir / "ndvi.png", dpi=dpi, bbox_inches="tight")
     plt.close(fig)
 
@@ -193,10 +261,7 @@ def render(downsample, dpi, out_dir):
     print(f"NDVI range: {np.nanmin(ndvi):.2f} to {np.nanmax(ndvi):.2f}")
 
 
-# Web size: 40 m pixels at 200 dpi = ~3,000 px wide, about 3 MB. Fine for Git.
 render(downsample=4, dpi=200, out_dir=Path("outputs"))
 
-# Full detail: 10 m pixels at 800 dpi = ~12,000 px wide. Too big for Git, so
-# it goes in outputs/hires/ (ignored by Git) for publishing elsewhere.
 if "--hires" in sys.argv:
     render(downsample=1, dpi=800, out_dir=Path("outputs/hires"))

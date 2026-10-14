@@ -48,7 +48,7 @@ Getting the details onto the map was half the fun: drawing Puget Sound as a poly
 
 ![NDVI Snohomish County, July 2026](../outputs/ndvi.png)
 
-NDVI compares two kinds of light: red and near-infrared. Healthy plants absorb red and reflect a lot of near-infrared, so the difference between them shows how green and leafy a place is. Dense forest comes out dark green. Everything that isn't leafy shows up red or yellow.
+NDVI (Normalized Difference Vegetation Index) is a metric that quantifies green vegetation health and density by measuring the difference between two kinds of light: red and near-infrared. Healthy plants absorb red and reflect a lot of near-infrared, so the difference between them shows how green and leafy a place is. Dense forest comes out dark green. Everything that isn't leafy shows up red or yellow.
 
 The same satellite pixels that made the true-color map now tell a different story:
 

@@ -15,7 +15,9 @@ _More datasets will be added when they are actually used._
 ![True-color Snohomish County](outputs/true_color.png)
 ![NDVI Snohomish County](outputs/ndvi.png)
 
-Sentinel-2, July 2026. Full story: [Seeing My Home from Space](stories/01-seeing-snohomish-from-space.md). Full-resolution (10 m) versions are not in Git; see the story for where to find them.
+Sentinel-2, July 2026. Full story: [Seeing Snohomish from Space](stories/01-seeing-snohomish-from-space.md).
+
+Full-resolution (10 m) versions are not in Git; see the story for where to find them.
 
 ## Analysis
 

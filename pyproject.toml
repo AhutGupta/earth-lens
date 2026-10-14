@@ -10,6 +10,8 @@ dependencies = [
     "matplotlib",
     "planetary-computer",
     "pystac-client",
+    # 1.5+ only ships macOS 15+ wheels; <1.5 installs on macOS 14 without GDAL
+    "rasterio>=1.4,<1.5",
     "rioxarray",
     "xarray",
 ]

@@ -20,6 +20,8 @@ import rasterio
 from matplotlib.lines import Line2D
 from pyproj import Transformer
 from rasterio.enums import Resampling
+from shapely import Polygon, unary_union
+from shapely.geometry import box
 
 DATE_LABEL = "Sentinel-2, 20 August 2023"
 
@@ -83,53 +85,93 @@ def load(zip_path, county):
     layer = gpd.read_file(zip_path).to_crs("EPSG:32610")
     return gpd.clip(layer, county)
 
+
 def draw_layers(ax):
     """Draw roads, rivers, lakes, glaciers, and Puget Sound with legend box."""
     county = gpd.read_file("data/snohomish_utm.gpkg")
     handles = []
     outline = [pe.withStroke(linewidth=2.5, foreground="white")]
 
+    # Puget Sound = open water west of the county + water in coastline notches
+    # (e.g. Port Gardner Bay at Everett), but NOTHING above the county's north
+    # edge or below its south edge.
+    county_geom = county.geometry.unary_union
+    c_xmin, c_ymin, c_xmax, c_ymax = county_geom.bounds
+    xmin, xmax, ymin, ymax = get_extent()
+
+    # Find the county's NW and SW corner points (using hull vertices, so tiny
+    # islands or coastline wiggles can't confuse it).
+    hull = county_geom.convex_hull
+    pts = np.array(hull.exterior.coords)
+    nx = (pts[:, 0] - c_xmin) / (c_xmax - c_xmin)  # 0 = west, 1 = east
+    ny = (pts[:, 1] - c_ymin) / (c_ymax - c_ymin)  # 0 = south, 1 = north
+    nw = pts[np.argmax(ny - nx)]
+    sw = pts[np.argmax(-ny - nx)]
+
+    # Open water strip west of the NW-SW line, cut off at the NW and SW points' northing.
+    west_strip = Polygon([(xmin, sw[1]), (xmin, nw[1]), tuple(nw), tuple(sw)])
+
+    # Allowed area = that strip + the county's convex hull (covers coastline notches).
+    # Anything north/south of the county's own outline is outside this area.
+    allowed = unary_union([hull, west_strip]).intersection(
+        box(xmin, c_ymin, (xmin + xmax) / 2, c_ymax)  # west half only
+    )
+    puget_geom = allowed.difference(county_geom)
+
+    # Clean-up: drop any hairline leftovers (opening = shrink, then regrow by 100 m).
+    puget_geom = puget_geom.buffer(-100).buffer(100)
+
+    puget_poly = gpd.GeoSeries([puget_geom], crs="EPSG:32610")
+    puget_poly.plot(ax=ax, facecolor="#0288d1", alpha=0.35, edgecolor="#01579b", linewidth=0.8)
+    
+    # Plot solid blue Puget Sound block bounded cleanly by county limits
+    puget_poly.plot(ax=ax, facecolor="#0288d1", alpha=0.35, edgecolor="#01579b", linewidth=0.8)
+
+    # Offshore Puget Sound text label placed cleanly inside the water body north of Mukilteo
+    puget_x, puget_y = TO_UTM.transform(-122.330, 47.985)
+    ax.text(
+        puget_x, puget_y, "Puget Sound", fontsize=10, fontstyle="italic",
+        fontweight="bold", color="#01579b", path_effects=outline,
+        ha="center", va="center"
+    )
+
+    handles += [
+        Line2D([0], [0], color="#01579b", lw=2, label="Puget Sound"),
+    ]
+
     if WATER_ZIP.exists():
         water = load(WATER_ZIP, county)
+        # CRITICAL FIX: Filter out Point / MultiPoint geometries created by clipping!
+        water = water[water.geometry.type.isin(["Polygon", "MultiPolygon"])]
         water = water.assign(km2=water.area / 1e6)
 
-        puget_sound = water[water["MTFCC"] == "H2051"]
         lakes = water[water["MTFCC"].isin(["H2030", "H2040"]) & (water.km2 > MIN_LAKE_KM2)]
         glaciers = water[(water["MTFCC"] == "H2081") & (water.km2 > MIN_GLACIER_KM2)]
         wide_rivers = water[water["MTFCC"] == "H3010"]
 
-        # Solid polygon fill for Puget Sound (no dots/markers)
-        puget_sound.plot(ax=ax, facecolor="#0288d1", alpha=0.55, edgecolor="#01579b", linewidth=0.8)
-        
-        # Lakes and rivers
-        lakes.plot(ax=ax, facecolor="#0288d1", alpha=0.4, edgecolor="#4fc3f7", linewidth=1.1)
-        wide_rivers.plot(ax=ax, facecolor="#4fc3f7", edgecolor="none")
+        # Lakes and wide rivers: transparent face fill so satellite imagery shows through
+        lakes.plot(ax=ax, facecolor="none", edgecolor="#4fc3f7", linewidth=1.0)
+        wide_rivers.plot(ax=ax, facecolor="none", edgecolor="#4fc3f7", linewidth=0.8)
 
-        # Glaciers: Electric cyan
-        glaciers.plot(ax=ax, facecolor="#e0f7fa", alpha=0.6, edgecolor="#00e5ff", linewidth=1.2, linestyle="--")
-
-        # Puget Sound label placed strictly offshore (far west into open water)
-        puget_x, puget_y = TO_UTM.transform(-122.480, 47.920)
-        ax.text(
-            puget_x, puget_y, "Puget Sound", fontsize=10, fontstyle="italic",
-            fontweight="bold", color="#01579b", path_effects=outline, rotation=-15,
-        )
+        # Glaciers: Electric cyan dashed boundary
+        glaciers.plot(ax=ax, facecolor="none", edgecolor="#00e5ff", linewidth=1.2, linestyle="--")
 
         handles += [
-            Line2D([0], [0], color="#01579b", lw=2, label="Puget Sound"),
             Line2D([0], [0], color="#4fc3f7", lw=2, label="Lakes & rivers"),
             Line2D([0], [0], color="#00e5ff", lw=2, ls="--", label="Glaciers"),
         ]
 
     if RIVERS_ZIP.exists():
         streams = load(RIVERS_ZIP, county)
-        # Filter out non-line geometries or point noise along coastline
+        # CRITICAL FIX: Filter out Point / MultiPoint geometries so no coastal dots are drawn!
         streams = streams[streams.geometry.type.isin(["LineString", "MultiLineString"])]
         rivers = streams[streams["FULLNAME"].fillna("").str.contains(r"\bRiv\b")]
         rivers.plot(ax=ax, color="#4fc3f7", linewidth=0.8)
 
     if ROADS_ZIP.exists():
         roads = load(ROADS_ZIP, county)
+        # CRITICAL FIX: Filter out Point / MultiPoint geometries caused by clipping roads at county boundary!
+        roads = roads[roads.geometry.type.isin(["LineString", "MultiLineString"])]
         roads[roads["RTTYP"] == "S"].plot(ax=ax, color="#ffb74d", linewidth=0.6)
         roads[roads["RTTYP"].isin(["I", "U"])].plot(ax=ax, color="#ffee58", linewidth=1.4)
 
@@ -148,6 +190,7 @@ def draw_layers(ax):
         borderpad=0.8,
         handletextpad=0.6,
     )
+
 
 def draw_landmarks(ax):
     """Plot landmarks: cities get markers; lakes/peaks get cleanly offset text labels."""

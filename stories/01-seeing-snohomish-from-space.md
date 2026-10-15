@@ -1,10 +1,12 @@
 # Seeing Snohomish County from Space
 
-Every few days, satellites pass over nearly every place on Earth and take a picture. The images are free, and anyone with a laptop can download them. Most of us never look.
+Every few days, a satellite passes over nearly every place on Earth and takes a picture. The images are free, and anyone with a laptop can download them. Most of us never look.
 
-I have always loved maps. A good map takes a huge, messy piece of the real world and makes it something you can hold in your hands and understand at a glance. It tells you where you are, how things connect, and what is worth a closer look.
+I finally did, starting with where I live: Snohomish County, Washington. I love maps, and as a software engineer I wanted to learn how raw satellite pixels become one, and to make something beautiful along the way. This is the first step of **Earth-Lens**, a project to understand how the landscape around me has changed since I moved to the Seattle area in 2018.
 
-This project is my way of exploring all that satellite data. I'm a software engineer, and I wanted to use those skills to learn how raw pixels become a map, picking up geospatial concepts along the way, and to make something beautiful in the process: maps as a kind of art.
+## Why Snohomish County
+
+It is home, so I know it well enough to sanity-check what the data shows. And it holds an unusual range in one place: Puget Sound coastline, a river delta, farmland, suburbs, foothill forest and glaciated Cascade peaks.
 
 ### 📊 Project Snapshot
 > - **Satellite Data:** Copernicus Sentinel-2 L2A (10 m spatial resolution), mid-July 2026
@@ -12,75 +14,76 @@ This project is my way of exploring all that satellite data. I'm a software engi
 > - **Vector Data:** US Census Bureau TIGER/Line (County boundary, roads, rivers, lakes)
 > - **Target Region:** Snohomish County, WA (~2,100 sq. miles)
 > - **Tech Stack:** Python (`rasterio`, `geopandas`, `matplotlib`, `shapely`)
-> - **Code:** [github.com/AhutGupta/earth-lens](https://github.com/AhutGupta/earth-lens)
 
-## Why this project
-
-The idea was to start simple, and to start at home. I live in Snohomish County, Washington, which turned out to be a perfect first subject: a huge amount of variety packed into one county, and a place I know well enough to check the results against.
-
-The other ingredient was NDVI, a vegetation index that is simple to calculate and yet known for revealing a lot about a landscape. I wanted to see for myself how much a simple index could show.
-
-## The true-color map
+## True color
 
 ![True-color Snohomish County, July 2026](../outputs/true_color.png)
 
-True color is the picture your eyes would see from space: the red, green and blue bands, stretched a little for contrast. If you live here, you can probably find your own neighborhood.
+This is the county as your eyes would see it from orbit. If you live here, you can probably find your own neighborhood.
 
-Start at the left edge, in the deep water of **Puget Sound**. Moving east, the shoreline runs past **Mukilteo** and **Edmonds** to the **Port of Everett**, where the **Snohomish River** spreads into its delta. In the north-west are the checkerboard farm fields near **Stanwood** and **Marysville**, and the cities line up along the Interstate 5 corridor, with **Lake Stevens** dark against the streets around it.
+- **West:** the deep water of **Puget Sound**, with **Mukilteo**, **Edmonds** and the **Port of Everett** along the shore, where the **Snohomish River** fans into its delta.
+- **Northwest:** a checkerboard of farm fields near **Stanwood** and **Marysville**.
+- **Center:** cities strung along **I-5**, with **Lake Stevens** dark against the streets.
+- **Foothills:** dark green forest, with **Spada Lake** filling a long valley.
+- **East:** the Cascades. **Three Fingers**, **Vesper**, **Sloan**, **Kyes** and **Columbia** peaks rise as pale ridges with snow still in the gullies, and **Glacier Peak**, a volcano ringed by glaciers, sits at the far edge.
 
-Further east the city grid gives way to dark green foothill forest, with **Spada Lake** lying in a long valley. Then the Cascades begin. **Three Fingers**, **Vesper Peak**, **Sloan Peak**, **Kyes Peak** and **Columbia Peak** rise as pale, rocky ridges with July snow still in the gullies. At the far east edge is **Glacier Peak**, a volcano, ringed by glaciers.
+[Full-resolution True Color map (~100 MB)](https://github.com/AhutGupta/earth-lens/releases/download/v1.0/true_color.png)
 
-Getting the details onto the map was half the fun: drawing Puget Sound as a polygon, adding the roads and rivers as layers, placing peaks and cities by their real coordinates, and nudging the labels so the text doesn't cover what it names.
-
-## The NDVI map
+## Vegetation (NDVI)
 
 ![NDVI Snohomish County, July 2026](../outputs/ndvi.png)
 
-NDVI stands for Normalized Difference Vegetation Index, and it measures how green and healthy the plants in a place are. It works because of how leaves behave. They absorb red light, which they use to make energy, and they bounce back a lot of near-infrared light, which our eyes can't see but the satellite can. Compare the two and you get a number for each pixel:
+Same scenes, same pixels, a completely different picture. Green means lots of vegetation, red means little or none.
+
+- **Glaciers and snowfields** around Glacier Peak glow red. Ice has no leaves.
+- **Lakes**, including Spada and Lake Stevens, show as red shapes.
+- **Cities, roads and the Boeing factory and runway** near Mukilteo appear yellow and orange.
+- **Farm fields** form a patchwork of greens and yellows.
+- **Foothill forest** fills the middle of the map with deep, solid green.
+
+The city-to-forest boundary is much sharper here than in the photo. That is the payoff of looking beyond visible light.
+
+[Full-resolution NDVI map (~100 MB)](https://github.com/AhutGupta/earth-lens/releases/download/v1.0/ndvi.png)
+
+### How NDVI works
+
+Leaves absorb red light for photosynthesis and bounce back a lot of near-infrared light, which our eyes can't see but the satellite can. Compare the two for each pixel:
 
 **NDVI = (NIR − Red) / (NIR + Red)**
 
-The result runs from −1 to +1. Water and snow sit at or below zero, bare ground and pavement are low, and thick, healthy forest is high, closer to 1. On the map, green means plants and red means no plants.
+The result runs from −1 to +1:
 
-The same satellite pixels that made the true-color map now tell a different story:
+| NDVI | Typically means |
+|---|---|
+| 0 or below | Water, snow, ice |
+| ~0.1 to 0.2 | Bare ground, rock, pavement |
+| ~0.2 to 0.5 | Grass, crops, sparse vegetation |
+| 0.6 and above | Dense, healthy forest |
 
-- The **glaciers and snowfields** around Glacier Peak and the high ridges glow red.
-- **Lakes**, including Spada Lake and Lake Stevens, stand out as red shapes.
-- The **river delta** at Everett is a tangle of red and dark water.
-- **Cities, roads and the Boeing factory and runway area** near Mukilteo show up in yellow and orange.
-- The **farm fields** in the north-west form a patchwork of greens and yellows.
+## How it was made
 
-NDVI can't tell *why* a place isn't green. Water, snow, rock and pavement all just read "not plants."
+**The imagery** comes from **Sentinel-2**, European Space Agency satellites in the EU's Copernicus program. At that resolution, individual roads and small lakes are visible. I downloaded scenes from the Copernicus Browser, choosing ones with little cloud cover.
 
-## Where the data comes from
+**The process** was four small Python scripts, run in order:
 
-The imagery is from **Sentinel-2**, a family of European Space Agency satellites that are part of the EU's Copernicus program. At 10 meters per pixel, the detail is fine enough to pick out individual roads and lakes. I downloaded the scenes from the Copernicus Browser, choosing ones with little cloud cover. The county boundary, roads, rivers and lakes come from the US Census Bureau.
+1. `01_boundary.py` extracts the county outline and makes a locator map.
+2. `02_inspect_scenes.py` checks that the downloaded tiles cover the whole county.
+3. `03_mosaic_clip.py` stitches the tiles together, evens out brightness and clips to the county shape.
+4. `04_render.py` draws the final maps with roads, rivers, glaciers, Puget Sound and landmarks on top.
 
-## How it came together
+It took a few tries. My first scene was hazy, so I switched dates. The next was missing a tile, so I added a second scene taken two days apart.
 
-Four small Python scripts, run in order:
+## What I learned
 
-1. **`01_boundary.py`** pulls out the county outline and makes a locator map.
-2. **`02_inspect_scenes.py`** checks that the downloaded tiles actually cover the whole county.
-3. **`03_mosaic_clip.py`** stitches the tiles into one image, evens out their brightness, and trims it to the county shape.
-4. **`04_render.py`** draws the final maps, with the roads, rivers, glaciers, Puget Sound and landmarks on top.
+- **A satellite image is just numbers.** A few lines of code turn them into a picture or a map of where the plants are. I didn't expect one formula to pull glaciers, lakes and city grids out of the same four bands.
+- **Maps are layers.** Imagery, boundaries, roads and rivers only line up once they share one coordinate system, the rule for flattening a round Earth onto a flat screen.
+- **Small choices shape the picture.** Contrast, color and label placement decide whether a map is merely accurate or actually readable.
+- **Check before you trust.** A coverage check and a close look at every render are what caught those problems before they reached the final maps.
 
-I didn't get it right the first time. My first scene was hazy, so I switched dates. The next one was missing a tile, so I added a second one, taken two days apart, to complete the map.
+## Next question
 
-## What I took away
+If one summer looks like this, **how different did earlier summers look?** In the next release, I'll line up July–August scenes from **2018, 2020, 2023 and the latest year** and compare them using the same method.
 
-- **A satellite image is just numbers.** A few lines of code can turn them into a picture you can read or a map of where the plants are.
-- **Maps are layers.** Imagery, boundaries, roads and rivers only line up once they share one coordinate system.
-- **Redoing teaches more than getting it right once.** Most of what I learned came from the second and third passes.
-
-It also made me appreciate how lucky I am to live somewhere this beautiful, and there is plenty more in this data to explore.
-
-## Hi-Res Maps
-
-Full-resolution (10 m) versions of the maps are available here. Each file is about 100 MB, and clicking a link downloads it.
-1. [True Color map](https://github.com/AhutGupta/earth-lens/releases/download/v1.0/true_color.png)
-2. [NDVI map](https://github.com/AhutGupta/earth-lens/releases/download/v1.0/ndvi.png)
-
-## Credits
+---
 
 Contains modified Copernicus Sentinel data 2026. County boundaries, roads and water features: US Census Bureau (cb_2023 and TIGER/Line 2023).

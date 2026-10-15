@@ -53,4 +53,4 @@ uv run python scripts/04_render.py          # maps (add --hires for full 10 m de
 
 Short write-ups tied to milestones live in [`stories/`](stories/):
 
-- [01 – Seeing My Home from Space](stories/01-seeing-snohomish-from-space.md)
+- [01 – Seeing Snohomish from Space](stories/01-seeing-snohomish-from-space.md)
